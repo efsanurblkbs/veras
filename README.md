@@ -11,7 +11,7 @@ Okuduğun, okuyacağın ve okuyor olduğun kitapları Vera ile yönetebilirsin �
 👉 https://veras-ten.vercel.app
 
 ⚙️ Backend API (Render):  
-👉 https://veras-backend.onrender.com
+👉 https://veras-backend.onrender.com/api/books
 
 ---
 
