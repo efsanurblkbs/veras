@@ -16,6 +16,15 @@ app.get("/api/health", (req, res) => {
     app.use("/api/books", booksRouter);
   res.json({ message: "API çalışıyor 😈" });
 });
+
+app.use(express.json());
+
+// 👉 BUNU EKLEDİK
+app.get("/", (req, res) => {
+  res.send("🐾 VERAS Backend çalışıyor! Made with 💗");
+});
+
+app.use("/api/books", bookRoutes);
 app.use("/api/books", booksRouter);
 import { notFound } from "./middlewares/notFound.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
