@@ -1,24 +1,40 @@
 import express from "express";
+import mongoose from "mongoose";
 import Book from "../models/Book.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { requireAuth } from "../middlewares/auth.js";
 
 const router = express.Router();
 
+// Bu router'daki HER endpoint için login şart:
+router.use(requireAuth);
+
+// owner id'yi tek yerden güvenli alalım
+function getOwnerId(req) {
+  // requireAuth bazı projelerde req.userId, bazılarında req.user._id koyar
+  const id = req.userId || req.user?._id;
+  return id; // string veya ObjectId olabilir
+}
+
 /**
  * GET /api/books/stats
- * toplam, durumlara göre sayılar, ortalama puan
+ * Sadece giriş yapan kullanıcının istatistikleri
  */
 router.get(
   "/stats",
   asyncHandler(async (req, res) => {
-    const toplam = await Book.countDocuments();
+    const owner = getOwnerId(req);
+    const ownerObjId = new mongoose.Types.ObjectId(owner);
+
+    const toplam = await Book.countDocuments({ owner: ownerObjId });
 
     const durumlar = await Book.aggregate([
+      { $match: { owner: ownerObjId } },
       { $group: { _id: "$durum", count: { $sum: 1 } } },
     ]);
 
     const puanIst = await Book.aggregate([
-      { $match: { puan: { $ne: null } } },
+      { $match: { owner: ownerObjId, puan: { $ne: null } } },
       {
         $group: {
           _id: null,
@@ -42,29 +58,33 @@ router.get(
 
 /**
  * POST /api/books
- * Kitap ekler
+ * Kitap ekler (owner otomatik giriş yapan kullanıcı olur)
  */
 router.post(
   "/",
   asyncHandler(async (req, res) => {
-    const yeniKitap = await Book.create(req.body);
+    const owner = getOwnerId(req);
+
+    const yeniKitap = await Book.create({
+      ...req.body,
+      owner, // mongoose string'i de ObjectId'e cast eder
+    });
+
     res.status(201).json(yeniKitap);
   })
 );
 
 /**
  * GET /api/books
- * Liste + filtre + arama + sıralama
- * ?durum=okundu
- * ?q=simyaci
- * ?sort=puan_desc | puan_asc
+ * Liste + filtre + arama + sıralama (sadece kendi kitapların)
  */
 router.get(
   "/",
   asyncHandler(async (req, res) => {
+    const owner = getOwnerId(req);
     const { durum, q, sort } = req.query;
 
-    const filter = {};
+    const filter = { owner };
 
     if (durum) filter.durum = durum;
 
@@ -87,30 +107,36 @@ router.get(
 
 /**
  * DELETE /api/books/:id
- * kitap sil
  */
 router.delete(
   "/:id",
   asyncHandler(async (req, res) => {
-    const silinen = await Book.findByIdAndDelete(req.params.id);
+    const owner = getOwnerId(req);
+
+    const silinen = await Book.findOneAndDelete({ _id: req.params.id, owner });
+
     if (!silinen) {
       res.status(404);
       throw new Error("Kitap bulunamadı");
     }
+
     res.json({ message: "Kitap silindi ✅" });
   })
 );
 
 /**
  * PUT /api/books/:id
- * kitap güncelle
  */
 router.put(
   "/:id",
   asyncHandler(async (req, res) => {
-    const guncel = await Book.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-    });
+    const owner = getOwnerId(req);
+
+    const guncel = await Book.findOneAndUpdate(
+      { _id: req.params.id, owner },
+      req.body,
+      { new: true, runValidators: true }
+    );
 
     if (!guncel) {
       res.status(404);
@@ -123,15 +149,15 @@ router.put(
 
 /**
  * PATCH /api/books/:id/rating
- * puan ekle/güncelle
  */
 router.patch(
   "/:id/rating",
   asyncHandler(async (req, res) => {
+    const owner = getOwnerId(req);
     const { puan } = req.body;
 
-    const guncel = await Book.findByIdAndUpdate(
-      req.params.id,
+    const guncel = await Book.findOneAndUpdate(
+      { _id: req.params.id, owner },
       { puan },
       { new: true, runValidators: true }
     );
@@ -147,13 +173,14 @@ router.patch(
 
 /**
  * DELETE /api/books/:id/rating
- * puanı sil
  */
 router.delete(
   "/:id/rating",
   asyncHandler(async (req, res) => {
-    const guncel = await Book.findByIdAndUpdate(
-      req.params.id,
+    const owner = getOwnerId(req);
+
+    const guncel = await Book.findOneAndUpdate(
+      { _id: req.params.id, owner },
       { puan: null },
       { new: true }
     );
@@ -169,17 +196,17 @@ router.delete(
 
 /**
  * PATCH /api/books/:id/status
- * durum güncelle
  */
 router.patch(
   "/:id/status",
   asyncHandler(async (req, res) => {
+    const owner = getOwnerId(req);
     const { durum } = req.body;
 
-    const guncel = await Book.findByIdAndUpdate(
-      req.params.id,
+    const guncel = await Book.findOneAndUpdate(
+      { _id: req.params.id, owner },
       { durum },
-      { new: true }
+      { new: true, runValidators: true }
     );
 
     if (!guncel) {

@@ -1,37 +1,37 @@
-import booksRouter from "./routes/books.js";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 
+import booksRouter from "./routes/books.js";
+import authRoutes from "./routes/authRoutes.js";
+import { notFound } from "./middlewares/notFound.js";
+import { errorHandler } from "./middlewares/errorHandler.js";
 
 dotenv.config();
 
 const app = express();
 
+// Middlewares
 app.use(cors());
 app.use(express.json());
 
-app.get("/api/health", (req, res) => {
-    app.use("/api/books", booksRouter);
-  res.json({ message: "API çalışıyor 😈" });
-});
-
-app.use(express.json());
-
-// 👉 BUNU EKLEDİK
+// Routes
 app.get("/", (req, res) => {
   res.send("🐾 VERAS Backend çalışıyor! Made with 💗");
 });
 
-app.use("/api/books", bookRoutes);
-app.use("/api/books", booksRouter);
-import { notFound } from "./middlewares/notFound.js";
-import { errorHandler } from "./middlewares/errorHandler.js";
+app.get("/api/health", (req, res) => {
+  res.json({ message: "API çalışıyor 😈" });
+});
 
-// ...
+app.use("/api/books", booksRouter);
+app.use("/api/auth", authRoutes);
+
+// Error handlers (en altta)
 app.use(notFound);
 app.use(errorHandler);
+
 const PORT = process.env.PORT || 5050;
 
 mongoose

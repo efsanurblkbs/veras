@@ -12,6 +12,15 @@ const BookSchema = new mongoose.Schema(
       required: [true, "yazar zorunlu"],
       trim: true,
     },
+
+    // 🔥 KİŞİYE ÖZEL TEK ALAN: owner
+    owner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
     favoriKarakter: { type: String, default: "" },
     tur: { type: String, default: "" },
 
@@ -25,7 +34,7 @@ const BookSchema = new mongoose.Schema(
       default: "okunacak",
     },
 
-    // puan ayrı yönetilecek ama modelde alan dursun
+    // puan
     puan: {
       type: Number,
       min: 0,
